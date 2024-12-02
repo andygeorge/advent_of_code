@@ -1,3 +1,0 @@
-%{
-  "elixir_math": {:hex, :elixir_math, "0.1.2", "5655bdf7f34e30906f31cdcf3031b43dd522ce8d2936b60ad4696b2c752bf5c9", [:mix], [], "hexpm"},
-}
