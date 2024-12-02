@@ -1,10 +1,9 @@
-use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() {
-    // Get the file name from command-line arguments
-    let args: Vec<String> = env::args().collect();
+    // Get the input file from command-line arguments
+    let args: Vec<String> = std::env::args().collect();
     if args.len() != 2 {
         eprintln!("Usage: {} <input_file>", args[0]);
         std::process::exit(1);
@@ -12,62 +11,49 @@ fn main() {
     let file_name = &args[1];
 
     // Read and parse the file
-    let (left_list, right_list) = match read_file(file_name) {
-        Ok((left, right)) => (left, right),
+    let reports = match read_file(file_name) {
+        Ok(reports) => reports,
         Err(e) => {
             eprintln!("Error reading file: {}", e);
             std::process::exit(1);
         }
     };
 
-    // Ensure both lists are of equal length
-    if left_list.len() != right_list.len() {
-        eprintln!("Error: The two lists must have the same number of elements.");
-        std::process::exit(1);
-    }
+    // Count the safe reports
+    let safe_count = reports.iter().filter(|report| is_safe(report)).count();
 
-    // Sort both lists
-    let mut sorted_left = left_list.clone();
-    let mut sorted_right = right_list.clone();
-    sorted_left.sort_unstable();
-    sorted_right.sort_unstable();
-
-    // Compute the total distance
-    let total_distance: i32 = sorted_left
-        .iter()
-        .zip(sorted_right.iter())
-        .map(|(a, b)| (a - b).abs())
-        .sum();
-
-    println!("The total distance between the two lists is: {}", total_distance);
+    println!("Number of safe reports: {}", safe_count);
 }
 
-fn read_file(file_name: &str) -> io::Result<(Vec<i32>, Vec<i32>)> {
-    let mut left_list = Vec::new();
-    let mut right_list = Vec::new();
-
+fn read_file(file_name: &str) -> io::Result<Vec<Vec<i32>>> {
     let file = File::open(file_name)?;
-    for line in io::BufReader::new(file).lines() {
-        let line = line?;
-        let columns: Vec<&str> = line.split_whitespace().collect();
-        if columns.len() != 2 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Each line must have exactly two columns",
-            ));
-        }
+    let reports = io::BufReader::new(file)
+        .lines()
+        .map(|line| {
+            line.unwrap()
+                .split_whitespace()
+                .filter_map(|num| num.parse::<i32>().ok())
+                .collect()
+        })
+        .collect();
+    Ok(reports)
+}
 
-        // Parse the numbers from each column
-        let left_num = columns[0].parse::<i32>().map_err(|_| {
-            io::Error::new(io::ErrorKind::InvalidData, "Invalid number in left column")
-        })?;
-        let right_num = columns[1].parse::<i32>().map_err(|_| {
-            io::Error::new(io::ErrorKind::InvalidData, "Invalid number in right column")
-        })?;
-
-        left_list.push(left_num);
-        right_list.push(right_num);
+fn is_safe(report: &Vec<i32>) -> bool {
+    if report.len() < 2 {
+        return false;
     }
 
-    Ok((left_list, right_list))
+    // Check if the report is increasing or decreasing
+    let is_increasing = report.windows(2).all(|pair| pair[1] > pair[0]);
+    let is_decreasing = report.windows(2).all(|pair| pair[1] < pair[0]);
+
+    // Check the differences between adjacent levels
+    let valid_differences = report.windows(2).all(|pair| {
+        let diff = (pair[1] - pair[0]).abs();
+        diff >= 1 && diff <= 3
+    });
+
+    // Return true if both conditions are satisfied
+    (is_increasing || is_decreasing) && valid_differences
 }
